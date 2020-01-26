@@ -134,7 +134,7 @@ void app_handler(void *app, enum ldl_mac_response_type type, const union ldl_mac
             ESP_LOGI(TAG, "LDL_MAC_TX_COMPLETE");
             break;
         case LDL_MAC_TX_BEGIN:
-            ESP_LOGI(TAG, "LDL_MAC_TX_BEGIN");
+            ESP_LOGI(TAG, "LDL_MAC_TX_BEGIN devNonce=%d", mac.devNonce);
             break;
         case LDL_MAC_SESSION_UPDATED:
             ESP_LOGI(TAG, "LDL_MAC_SESSION_UPDATED");
@@ -247,10 +247,13 @@ void app_main()
 
     for (;;) {
         if (LDL_MAC_ready(&mac)) {
+            ESP_LOGI(TAG, "LDL_MAC_ready");
             if (LDL_MAC_joined(&mac)) {
+                ESP_LOGI(TAG, "LDL_MAC_unconfirmedData");
                 const char *data = "Cheeki breeki!";
                 LDL_MAC_unconfirmedData(&mac, 1U, data, strlen(data) - 1, NULL);
             } else {
+                ESP_LOGI(TAG, "LDL_MAC_otaa");
                 LDL_MAC_otaa(&mac);
             }
         }
