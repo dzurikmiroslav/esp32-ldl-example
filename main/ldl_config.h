@@ -15,6 +15,7 @@
 #define LDL_DISABLE_DEVICE_TIME
 #define LDL_DISABLE_FULL_CHANNEL_CONFIG
 #define LDL_DISABLE_CMD_DL_CHANNEL
+#define LDL_ENABLE_HIGH_LEVEL_SPI
 
 #define LDL_ERROR(APP,...) do{fprintf(stderr,  "%u: %s: error: ", __LINE__, __FUNCTION__);fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
 #define LDL_DEBUG(APP,...) do{fprintf(stderr,  "%u: %s: debug: ", __LINE__, __FUNCTION__);fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
