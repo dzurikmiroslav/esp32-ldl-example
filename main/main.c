@@ -39,9 +39,11 @@ struct ldl_sm sm;
 struct ldl_radio radio;
 struct ldl_mac mac;
 
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+
 uint32_t LDL_System_ticks(void *app)
 {
-    return (uint32_t) esp_timer_get_time();
+    return (uint32_t) (unsigned long) esp_timer_get_time();
 }
 
 uint32_t LDL_System_tps(void)
@@ -59,11 +61,11 @@ void LDL_Chip_reset(void *self, bool state)
     gpio_set_direction(RFM_RESET, state ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT);
 }
 
-void LDL_Chip_write(void *self, uint8_t reg, uint8_t *data, uint8_t len)
+void LDL_Chip_write(void *self, uint8_t addr, const uint8_t *data, uint8_t len)
 {
     /* @formatter:off */
    spi_transaction_t t = {
-           .addr = reg,
+           .addr = addr | 0x80U,
            .length = 8 * len,
            .tx_buffer = data
    };
@@ -71,12 +73,12 @@ void LDL_Chip_write(void *self, uint8_t reg, uint8_t *data, uint8_t len)
    ESP_ERROR_CHECK(spi_device_transmit(spi_handle, &t));
 }
 
-void LDL_Chip_read(void *self, uint8_t reg, uint8_t *data, uint8_t len)
+void LDL_Chip_read(void *self, uint8_t addr, uint8_t *data, uint8_t len)
 {
     memset(data, 0, len);
     /* @formatter:off */
     spi_transaction_t t = {
-            .addr = reg,
+            .addr = addr & 0x7fU,
             .length = 8 * len,
             .rxlength = 8 * len,
             .tx_buffer = data,
@@ -101,7 +103,7 @@ void app_handler(void *app, enum ldl_mac_response_type type, const union ldl_mac
             srand(arg->startup.entropy);
             break;
         case LDL_MAC_JOIN_COMPLETE:
-            ESP_LOGI(TAG, "LDL_MAC_JOIN_COMPLETE");
+            ESP_LOGI(TAG, "LDL_MAC_JOIN_COMPLETE nextDevNonce=%d joinNonce=%d", arg->join_complete.nextDevNonce, arg->join_complete.joinNonce);
             break;
         case LDL_MAC_JOIN_TIMEOUT:
             ESP_LOGI(TAG, "LDL_MAC_JOIN_TIMEOUT");
@@ -134,7 +136,7 @@ void app_handler(void *app, enum ldl_mac_response_type type, const union ldl_mac
             ESP_LOGI(TAG, "LDL_MAC_TX_COMPLETE");
             break;
         case LDL_MAC_TX_BEGIN:
-            ESP_LOGI(TAG, "LDL_MAC_TX_BEGIN devNonce=%d", mac.devNonce);
+            ESP_LOGI(TAG, "LDL_MAC_TX_BEGIN devNonce=%d joinNonce=%d", mac.devNonce, mac.joinNonce);
             break;
         case LDL_MAC_SESSION_UPDATED:
             ESP_LOGI(TAG, "LDL_MAC_SESSION_UPDATED");
@@ -215,7 +217,7 @@ static void enable_interrupts()
 
 void app_main()
 {
-    ESP_LOGI(TAG, "Starting...");
+    ESP_LOGI(TAG, "Starting... %lld", esp_timer_get_time());
 
     init_spi();
     init_gpio();
@@ -245,6 +247,8 @@ void app_main()
 
     enable_interrupts();
 
+//    int dio0 = 0, dio1 = 0;
+
     for (;;) {
         if (LDL_MAC_ready(&mac)) {
             ESP_LOGI(TAG, "LDL_MAC_ready");
@@ -259,6 +263,20 @@ void app_main()
         }
 
         LDL_MAC_process(&mac);
+
+//        int d = gpio_get_level(RFM_DIO0);
+//        if (!dio0 && d) {
+//            LDL_Radio_interrupt(&radio, 0);
+//        }
+//        dio0 = d;
+//
+//        d = gpio_get_level(RFM_DIO1);
+//        if (!dio1 && d) {
+//            LDL_Radio_interrupt(&radio, 1);
+//        }
+//        dio1 = d;
+//
+//        vTaskDelay(1);
 
         uint32_t ticks_until_next_event = LDL_MAC_ticksUntilNextEvent(&mac);
         uint8_t dio;
